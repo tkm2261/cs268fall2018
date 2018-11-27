@@ -115,7 +115,27 @@ impl TspData {
             }
         }
         min_city
+    }
+    fn get_nearest_rev(&self, city_id: usize, is_visited: &Vec<bool>, step: &usize) -> usize {
+        let from_coord = self.coods[city_id];
+        let mut min_dist = f64::INFINITY;
+        let mut min_city: usize = 0;
+        for i in &self.city_ids {
+            if is_visited[*i] || self.coods[*i] == from_coord {
+                continue;
+            }
+            let mut dist = distance(from_coord, self.coods[*i]);
+            if step % 10 == 0 {
+                dist *= 1.1;
+            }
+            if dist < min_dist {
+                min_dist = dist;
+                min_city = *i;
+            }
+        }
+        min_city
     }    
+    
 }
 
 fn distance(from_: (f64, f64), to_: (f64, f64)) -> f64{
@@ -185,6 +205,30 @@ fn greedy(tsp_data: &TspData) -> Vec<usize> {
     route.push(0);
     //println!("{:?}", route);
     write_route(format!("greedy_{}.csv", tsp_data.city_ids.len()), &tsp_data, &route);
+    println!("score: {:?}", tsp_data.calc_score(&route));
+    route
+}
+
+fn greedy_rev(tsp_data: &TspData) -> Vec<usize> {
+    let mut route = vec![0];
+    let mut is_visited = vec![false; tsp_data.city_ids.len()];
+    is_visited[0] = true;
+    let mut current_city = 0;
+    let mut step = tsp_data.city_ids.len();
+    
+    while route.len() < tsp_data.city_ids.len() {
+        current_city = tsp_data.get_nearest_rev(current_city, &is_visited, &step);
+        step -= 1;
+        is_visited[current_city] = true;
+        route.push(current_city);
+        if route.len() % 10000 == 0 {
+            println!("{}", route.len());
+        }
+    }
+    route.push(0);
+    route.reverse();
+    //println!("{:?}", route);
+    write_route(format!("greedy_rev_{}.csv", tsp_data.city_ids.len()), &tsp_data, &route);
     println!("score: {:?}", tsp_data.calc_score(&route));
     route
 }    
@@ -295,7 +339,7 @@ fn main() {
      */
     //let route = read_route(String::from("greedy_197769.csv"));
     //let route = read_route(String::from("greedy_1000.csv"));
-    //let route = read_route(String::from("../cities1000.csv.path.csv.csv"));
+    //let route = read_route(String::from("../cities.csv.path.csv.csv"));
     let sa_start_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
     sa(&tsp_data, &route, sa_start_time - start_time, max_iter);
 }
