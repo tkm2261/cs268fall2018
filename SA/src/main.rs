@@ -217,6 +217,7 @@ fn sa(tsp_data: &TspData, _route: &Vec<usize>, start_time: f64, max_iter: usize)
     let sa_start_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
     let mut comp_time = 0.;
     let mut diff = 0.;
+    let mut prev_score = -1.;    
     for i in 0..max_iter {
         let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
         comp_time = (now - sa_start_time) + start_time;
@@ -226,7 +227,8 @@ fn sa(tsp_data: &TspData, _route: &Vec<usize>, start_time: f64, max_iter: usize)
         if curr_temp < ending_temp{
             curr_temp = ending_temp;
         } else {
-            curr_temp = curr_temp * 0.99999999; //start_temp / max_iter as f64;            
+            let d = (start_temp / max_iter as f64).min(curr_temp * 1.0e-7);
+            curr_temp = curr_temp - d;
         }
         /*
         let mean_time = comp_time / (i as f64);
@@ -265,7 +267,8 @@ fn sa(tsp_data: &TspData, _route: &Vec<usize>, start_time: f64, max_iter: usize)
 
         if i % 1000000 == 0 {
             //println!("{}", current_score - tsp_data.calc_score(&current_sol));
-            current_score = tsp_data.calc_score(&current_sol);
+            //current_score = tsp_data.calc_score(&current_sol);
+            prev_score = current_score;
             println!("iter: {}, time: {}, temp: {:e}, curr_score: {}, best_score: {}", i, comp_time, curr_temp, current_score, global_score);
         }
     }
@@ -279,8 +282,8 @@ fn main() {
     let max_iter = 1000000000;
     //let max_iter = 10000000;
     //let tsp_data = parse(String::from("../cities1000.csv"));
-    let tsp_data = parse(String::from("../cities10000.csv"));
-    //let tsp_data = parse(String::from("../cities.csv"));
+    //let tsp_data = parse(String::from("../cities10000.csv"));
+    let tsp_data = parse(String::from("../cities.csv"));
     let route = greedy(&tsp_data);
     /*
     let mut route = Vec::new();
@@ -292,6 +295,7 @@ fn main() {
      */
     //let route = read_route(String::from("greedy_197769.csv"));
     //let route = read_route(String::from("greedy_1000.csv"));
+    //let route = read_route(String::from("../cities1000.csv.path.csv.csv"));
     let sa_start_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
     sa(&tsp_data, &route, sa_start_time - start_time, max_iter);
 }
