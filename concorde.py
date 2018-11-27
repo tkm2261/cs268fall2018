@@ -17,7 +17,7 @@ def concorde(filename):
     cities = pd.read_csv(filename)
     solver = TSPSolver.from_data(cities.X, cities.Y, norm="EUC_2D")
 
-    tour_data = solver.solve(time_bound=3600.0, verbose=True, random_seed=seed)
+    tour_data = solver.solve(time_bound=1800.0, verbose=True, random_seed=seed)
     if tour_data.found_tour:
         path = np.append(tour_data.tour, [0])
         make_submission(filename + '.path.csv', path)
@@ -30,5 +30,8 @@ if __name__ == '__main__':
     #path = concorde('cities1000.csv')
     #print('score: ', score_path('cities1000.csv', path))
 
-    path = concorde('cities10000.csv')
-    print('score: ', score_path('cities10000.csv', path))
+    #path = concorde('cities10000.csv')
+    #print('score: ', score_path('cities10000.csv', path))
+
+    path = concorde('cities.csv')
+    print('score: ', score_path('cities.csv', path))
