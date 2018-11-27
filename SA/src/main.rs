@@ -4,7 +4,7 @@ extern crate primal;
 
 
 use rand::Rng;
-
+use std::time::SystemTime;
 
 use std::io::{Write, Read, BufWriter, BufReader, copy};
 
@@ -18,6 +18,7 @@ struct TspData {
     coods: Vec<(f64, f64)>,
 }
 
+const TIME_LIMIT: f64 = 3600.;
 
 impl TspData {
     fn calc_score(&self, route: &Vec<usize>) -> f64 {
@@ -135,22 +136,33 @@ fn prob_bolzman(e1: &f64, e2: &f64, t: &f64) -> f64{
 }
 
 
-fn sa(tsp_data: &TspData, _route: &Vec<usize>) {
+fn sa(tsp_data: &TspData, _route: &Vec<usize>, start_time: f64, max_iter: usize) {
     let mut current_sol = _route.clone();
     let mut current_score = tsp_data.calc_score(&current_sol);
-    let mut curr_temp = 10.;
-    let ending_temp = 0.0;
+    let start_temp = 1.;
+    let mut curr_temp = start_temp;
+    
+    let ending_temp = 1.0e-15;
     let mut rng = rand::thread_rng();
 
     let mut global_sol = _route.clone();
     let mut global_score = current_score;
     
-    println!("init score: {:?}", tsp_data.calc_score(&_route));    
-    for i in 1..100000000 {
-        if curr_temp < ending_temp{
-            break   
+    println!("init score: {:?}", tsp_data.calc_score(&_route));
+
+    let sa_start_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
+    let mut comp_time = 0.;
+    
+    for i in 1..max_iter {
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
+        let comp_time = (now - sa_start_time) + start_time;
+        if comp_time > TIME_LIMIT {
+            break;
         }
-        curr_temp = curr_temp * 0.999;
+        if curr_temp < ending_temp{
+            break;  
+        }
+        curr_temp = curr_temp - (start_temp / (max_iter as f64));
 
         let left: usize = rng.gen_range(1, tsp_data.city_ids.len());
         let right: usize = rng.gen_range(1, tsp_data.city_ids.len());
@@ -170,15 +182,21 @@ fn sa(tsp_data: &TspData, _route: &Vec<usize>) {
         }
 
         if i % 10000 == 0 {
-            println!("{} {} {}", i, current_score, global_score);
+            println!("iter: {}, time: {}, temp: {:e}, curr_score: {}, best_score: {}", i, comp_time, curr_temp, current_score, global_score);
         }
     }
+    println!("time: {}, temp: {:e}, best_score: {}", comp_time, curr_temp, global_score);    
 }
 
 
 
 fn main() {
-    let tsp_data = parse(String::from("../cities.csv"));
+    let start_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
+    //let max_iter = 100000000;
+    let max_iter = 10000000;
+    let tsp_data = parse(String::from("../cities10000.csv"));
+    //let tsp_data = parse(String::from("../cities10000.csv"));    
+    //let tsp_data = parse(String::from("../cities.csv"));
     let route = greedy(&tsp_data);
     /*
     let mut route = Vec::new();
@@ -189,6 +207,7 @@ fn main() {
     route.push(0);
      */
     //let route = read_route(String::from("greedy_1000.csv"));
-    //sa(&tsp_data, &route);
+    let sa_start_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;    
+    sa(&tsp_data, &route, sa_start_time - start_time, max_iter);
 }
 
