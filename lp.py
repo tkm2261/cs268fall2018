@@ -129,11 +129,12 @@ def main(filepath):
     logger.debug(f'route: {route}')
     score = score_path(filepath, route)
     logger.info(f'score: {len(route)} {score}')
-    pd.Series(route, name='Path').to_csv(filepath + '.sub.csv', index=False)
+    pd.Series(route, name='Path').to_csv(filepath + '.lp.sub.csv', index=False)
 
 
 if __name__ == '__main__':
     import pandas as pd
+    import os
     from logging import StreamHandler, DEBUG, Formatter, FileHandler, NullHandler
 
     log_fmt = Formatter('%(asctime)s %(name)s %(lineno)d [%(levelname)s][%(funcName)s] %(message)s ')
@@ -144,9 +145,15 @@ if __name__ == '__main__':
     logger.setLevel('DEBUG')
     logger.addHandler(handler)
 
+    handler = FileHandler(os.path.basename(__file__) + '.log', 'a')
+    handler.setLevel(DEBUG)
+    handler.setFormatter(log_fmt)
+    logger.setLevel(DEBUG)
+    logger.addHandler(handler)
+
     filepath = 'cities1000.csv'
     main(filepath)
-    filepath = 'cities10000.csv'
-    main(filepath)
+    #filepath = 'cities10000.csv'
+    # main(filepath)
     #filepath = 'cities.csv'
     # main(filepath)

@@ -50,7 +50,7 @@ class Greedy:
         logger.debug(f'route: {route}')
         score = score_path(self.filepath, route)
         logger.info(f'{self.filepath} score: {len(route)} {score}')
-        pd.Series(route, name='Path').to_csv(self.filepath + '.sub.csv', index=False)
+        pd.Series(route, name='Path').to_csv(self.filepath + '.greedy.sub.csv', index=False)
         logger.debug('exit')
         return route
 
