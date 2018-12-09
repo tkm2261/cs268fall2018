@@ -1,0 +1,9 @@
+[package]
+name = "GA"
+version = "0.1.0"
+authors = ["Your Name <you@example.com>"]
+
+[dependencies]
+csv = "1"
+primal = "0.2"
+rand="0.6"

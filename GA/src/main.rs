@@ -2,7 +2,7 @@ extern crate csv;
 extern crate rand;
 extern crate primal;
 
-use rand::Rng;
+use rand::{Rng, thread_rng};
 use std::time::SystemTime;
 
 use std::io::{Write, Read, BufWriter, BufReader, copy};
@@ -16,6 +16,12 @@ struct TspData {
     city_ids: Vec<usize>,
     primals: Vec<usize>,
     coods: Vec<(f64, f64)>,
+}
+
+#[derive(Debug, Clone)]
+struct Sol {
+    score: f64,
+    route: Vec<usize>,
 }
 
 impl TspData {
@@ -243,80 +249,126 @@ fn prob_bolzman(diff: &f64, t: &f64) -> f64{
 }
 
 
-fn sa(tsp_data: &TspData, _route: &Vec<usize>, start_time: f64, max_iter: usize) {
+fn ga(tsp_data: &TspData, _route: &Vec<usize>, start_time: f64, max_iter: usize) {
     let mut current_sol = _route.clone();
     let mut dists = tsp_data.calc_dists(&current_sol);
     let mut current_score: f64 = dists.iter().sum(); //tsp_data.calc_score(&current_sol);
-    let start_temp = 1.;
-    let mut curr_temp = start_temp;
-    
-    let ending_temp = 1.0e-15;
+
+    let N = 100;
     let mut rng = rand::thread_rng();
+    let mut populations: Vec<Sol> = vec![];
 
-    let mut global_sol = _route.clone();
-    let mut global_score = current_score;
+    let data = Sol {
+            score: tsp_data.calc_score(&current_sol),
+            route: current_sol.clone()
+        };
     
-    println!("init score: {:?} {:?}", tsp_data.calc_score(&_route), current_score);
+    populations.push(data);
+    let city_num: i32 = tsp_data.city_ids.len() as i32;
+    for i in 0..N * 2 {
+        let mut sol: Vec<usize> = vec![0];
+        let mut nums: Vec<i32> = (1..city_num).collect();
+        thread_rng().shuffle(&mut nums);            
+        for j in nums {
+            sol.push(j as usize);
+        }
+        sol.push(0);
+        let mut data = Sol {
+            score: tsp_data.calc_score(&sol),
+            route: sol
+        };
 
+        populations.push(data);
+    }
+    
     let sa_start_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
     let mut comp_time = 0.;
     let mut diff = 0.;
-    let mut prev_score = -1.;    
-    for i in 0..max_iter {
+    let mut prev_score = -1.;
+
+    for itr in 0..max_iter {
         let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
         comp_time = (now - sa_start_time) + start_time;
         if comp_time > TIME_LIMIT {
             break;
         }
-        if curr_temp < ending_temp{
-            curr_temp = ending_temp;
-        } else {
-            let d = (start_temp / max_iter as f64).min(curr_temp * 1.0e-7);
-            curr_temp = curr_temp - d;
-        }
-        /*
-        let mean_time = comp_time / (i as f64);
-        let possible_itr = TIME_LIMIT as f64 / mean_time;
 
-        let dec_temp = (start_temp / possible_itr).max(start_temp / max_iter as f64);
-        */
-
-
-        let left: usize = rng.gen_range(1, tsp_data.city_ids.len());
-        let right: usize = rng.gen_range(1, tsp_data.city_ids.len());
-        let p: f64 = rng.gen_range(0., 1.);
-        current_sol.swap(left, right);
-        
-        let old_left1 = dists[left - 1].clone();
-        let old_left2 = dists[left].clone();
-        let old_right1 = dists[right - 1].clone();
-        let old_right2 = dists[right].clone();                        
-
-        diff = tsp_data.calc_score_diff(&current_sol, &mut dists, left, right);
-        let next_score = current_score + diff;
-
-        if global_score > next_score {
-            global_score = next_score;
-            global_sol = current_sol.clone();
-        }
-        if next_score < current_score || prob_bolzman(&diff, &curr_temp) > p {
-            current_score = next_score;
-        } else {
-            current_sol.swap(left, right); //reverse
-            dists[left - 1] = old_left1;
-            dists[left] = old_left2;
-            dists[right - 1] = old_right1;
-            dists[right] = old_right2;
+        populations.sort_by(|a, b| a.score.partial_cmp(&b.score).unwrap());
+        if itr % 1 == 0 {
+            println!("iter: {}, time: {}, curr_score: {}, {}, {}", itr, comp_time, populations[0].score, populations[1].score, populations[2].score,);        
         }
 
-        if i % 1000000 == 0 {
-            //println!("{}", current_score - tsp_data.calc_score(&current_sol));
-            //current_score = tsp_data.calc_score(&current_sol);
-            prev_score = current_score;
-            println!("iter: {}, time: {}, temp: {:e}, curr_score: {}, best_score: {}", i, comp_time, curr_temp, current_score, global_score);
+        let mut new_populations: Vec<Sol> = vec![];
+
+        for i in 0..N {
+            new_populations.push(populations[i].clone());
         }
+        for i in 0..N {       
+
+            let parent1: usize = rng.gen_range(0, new_populations.len());
+            let mut parent1_data = new_populations[parent1].clone();
+            let parent2: usize = rng.gen_range(0, new_populations.len());
+            let mut parent2_data = new_populations[parent2].clone();
+            
+            let split: usize = rng.gen_range(1, tsp_data.city_ids.len() - 1);            
+            
+            if rng.gen_range(0., 1.) > 0.5 {
+                parent1_data.route.reverse();
+            }
+            if rng.gen_range(0., 1.) > 0.5 {
+                parent2_data.route.reverse();                
+            }            
+            let mut child1 = Sol {
+                score: -1.0,
+                route: vec![]
+            };
+            let mut child2 = Sol {
+                score: -1.0,
+                route: vec![]
+            };            
+
+            for i in 0..split {
+                child1.route.push(parent1_data.route[i]);
+                child2.route.push(parent2_data.route[i]);                
+            }
+            for i in split..city_num as usize {
+                if !child1.route.contains(&parent2_data.route[i]) {
+                    child1.route.push(parent2_data.route[i]);
+                }
+                if !child2.route.contains(&parent1_data.route[i]) {
+                    child2.route.push(parent1_data.route[i]);
+                }
+            }
+            for i in 1..split {
+                if !child1.route.contains(&parent2_data.route[i]) {
+                    child1.route.push(parent2_data.route[i]);
+                }
+                if !child2.route.contains(&parent1_data.route[i]) {
+                    child2.route.push(parent1_data.route[i]);
+                }
+            }
+            child1.route.push(0);
+            child2.route.push(0);
+            child1.score = tsp_data.calc_score(&child1.route);
+            child2.score = tsp_data.calc_score(&child2.route);
+            new_populations.push(child1);
+            new_populations.push(child2);            
+        }
+        for data in &new_populations {
+            if rng.gen_range(0., 1.) < 0.2 {
+                let left: usize = rng.gen_range(1, tsp_data.city_ids.len());
+                let right: usize = rng.gen_range(1, tsp_data.city_ids.len());
+                let mut new_data = Sol {
+                    score: -1.0,
+                    route: data.route.clone(),
+                };            
+                new_data.route.swap(left, right);
+                new_data.score = tsp_data.calc_score(&new_data.route);
+            }
+        }
+        populations = new_populations;
     }
-    println!("time: {}, temp: {:e}, best_score: {}", comp_time, curr_temp, global_score);
+
 }
 
 
@@ -341,6 +393,6 @@ fn main() {
     //let route = read_route(String::from("greedy_1000.csv"));
     //let route = read_route(String::from("../cities.csv.path.csv.csv"));
     let sa_start_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs() as f64;
-    sa(&tsp_data, &route, sa_start_time - start_time, max_iter);
+    ga(&tsp_data, &route, sa_start_time - start_time, max_iter);
 }
 
